@@ -8,7 +8,7 @@ from aiogram.utils import executor
 from config import *
 from load_data import *
 
-
+print('start bot')
 # Логирование
 logging.basicConfig(level=logging.INFO)
 
