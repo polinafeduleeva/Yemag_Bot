@@ -180,7 +180,7 @@ def job_wrapper():
 
 
 # Запланировать выполнение функции job каждую секунду
-schedule.every().hour.at(":00").do(job_wrapper)
+schedule.every().day.at("04:00").do(job_wrapper)
 
 
 # Функция для запуска schedule в асинхронном режиме
