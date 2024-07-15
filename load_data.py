@@ -38,6 +38,7 @@ def load_data(db):
     for elem in elements:
         try:
             code = prepare_code(elem.find('ns:Артикул', namespaces).text)
+            print(code)
             count = elem.find('ns:Количество', namespaces).text
             size_arr = elem.find('ns:ХарактеристикиТовара', namespaces)
             price_arr = elem.find('ns:Цены', namespaces)
@@ -80,6 +81,6 @@ def load_data(db):
                 else:
                     stocks[stock][code][size] = f'{count} {enum.lower()}'
             prices[code] = price
-        except:
-            pass
+        except Exception as err:
+            print(err)
     return sizes, stocks, prices, colors, 0
