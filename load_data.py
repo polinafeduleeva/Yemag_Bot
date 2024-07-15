@@ -14,6 +14,7 @@ def prepare_code(code):
 
 
 def load_data(db):
+    print('start loading')
     namespaces = {'ns': 'urn:1C.ru:commerceml_2'}
     try:
         tree = ET.parse(db)
@@ -71,8 +72,8 @@ def load_data(db):
             try:
                 enum = elem.find('ns:БазоваяЕдиница', namespaces)
                 enum = enum.attrib['НаименованиеПолное']
-            except:
-                pass
+            except Exception as err:
+                print(err)
             if stock and int(count):
                 if stock not in stocks:
                     stocks[stock] = {code: {size: f'{count} {enum.lower()}'}}
