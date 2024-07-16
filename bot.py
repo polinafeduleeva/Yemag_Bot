@@ -8,7 +8,7 @@ from aiogram.utils import executor
 from config import *
 from load_data import *
 
-print('start bot')
+
 # Логирование
 logging.basicConfig(level=logging.INFO)
 
@@ -18,8 +18,9 @@ dp = Dispatcher(bot)
 # инициализация переменных для работы с ботом
 users_code = {}
 users_sizes = {}
+users_colors = {}
 # выгрузка датасета
-sizes, stocks, prices, colors, code = load_data('offers0_1.xml')
+sizes, stocks, prices, colors, names, code = load_data('offers0_1.xml')
 # Включаем логирование
 dp.middleware.setup(LoggingMiddleware())
 
@@ -71,7 +72,30 @@ async def get_size(chat_id: int):
     keyboard.row(btn1)
     keyboard.row(btn2)
     keyboard.row(btn3)
-    await bot.send_message(chat_id, f"Выберите нужный размер для артикула {curr_code}, цвет {colors[curr_code]}",
+    await bot.send_message(chat_id, f"Выберите нужный размер для товара {names[curr_code]}",
+                           reply_markup=keyboard)
+
+
+async def get_color(chat_id: int):
+    curr_code = users_code[chat_id]
+    curr_size = users_sizes[chat_id]
+    curr_colors = colors[curr_code][curr_size]
+    print(curr_colors)
+    keyboard = InlineKeyboardMarkup()
+    btns = []
+    for i in range(len(curr_colors)):
+        s = str(curr_colors[i])
+        btns.append(InlineKeyboardButton(s, callback_data=f"btn_color_{i}"))
+    keyboard.add(*btns)
+    btn1 = InlineKeyboardButton("Нет нужного цвета", callback_data=f"btn_not_color")
+    btn2 = InlineKeyboardButton("Выбрать другой размер", callback_data=f"btn_get_size")
+    btn3 = InlineKeyboardButton("Показать цену", callback_data=f"btn_get_price")
+    btn4 = InlineKeyboardButton("Вернуться в начало", callback_data=f"btn_to_start")
+    keyboard.row(btn1)
+    keyboard.row(btn2)
+    keyboard.row(btn3)
+    keyboard.row(btn4)
+    await bot.send_message(chat_id, f"Выберите нужный цвет для товара {names[curr_code]} размера {curr_size}",
                            reply_markup=keyboard)
 
 
@@ -79,6 +103,7 @@ async def send_stock(chat_id: int):
     global stocks
     curr_code = users_code[chat_id]
     curr_size = users_sizes[chat_id]
+    curr_color = users_colors[chat_id]
     keyboard = InlineKeyboardMarkup()
     btn1 = InlineKeyboardButton("Выбрать другой артикул", callback_data=f"btn_another_code")
     btn2 = InlineKeyboardButton("Выбрать другой размер", callback_data=f"btn_get_size")
@@ -94,11 +119,11 @@ async def send_stock(chat_id: int):
     s = '\n'.join([f'{i + 1}) {list(d.keys())[i]} в количестве {d[list(d.keys())[i]]}'
                    for i in range(len(d.keys())) if d[list(d.keys())[i]]])
     if s:
-        await bot.send_message(chat_id, f"Артикул {curr_code}, цвет {colors[curr_code]} в размере {curr_size} "
+        await bot.send_message(chat_id, f"Товар {names[curr_code]} в размере {curr_size}, цвет {curr_color} "
                                         f"найден в:\n {s}\nЦена {prices[curr_code]} ₽", reply_markup=keyboard)
     else:
-        await bot.send_message(chat_id, f"Артикул {curr_code}, цвет {colors[curr_code]}"
-                                        f" в размере {curr_size} не найден ни на одном из "
+        await bot.send_message(chat_id, f"Товар {names[curr_code]}"
+                                        f" в размере {curr_size}, цвет {curr_color} не найден ни на одном из "
                                         f"складов", reply_markup=keyboard)
 
 
@@ -106,7 +131,7 @@ async def get_price(chat_id: int):
     global prices
     curr_code = users_code[chat_id]
     keyboard = InlineKeyboardMarkup()
-    await bot.send_message(chat_id, f"Цена для артикула {curr_code}, цвет {colors[curr_code]}"
+    await bot.send_message(chat_id, f"Цена для товара {names[curr_code]}"
                                     f" - {prices[curr_code]} ₽", reply_markup=keyboard)
     await get_size(chat_id)
 
@@ -117,6 +142,14 @@ async def not_size(chat_id: int):
     await bot.send_message(chat_id, f"Размерная сетка выбранного артикула выведена на кнопках. Пожалуйста,"
                                     f" выберите размер из предложенных.", reply_markup=keyboard)
     await get_size(chat_id)
+
+
+async def not_color(chat_id: int):
+    global prices
+    keyboard = InlineKeyboardMarkup()
+    await bot.send_message(chat_id, f"Цвета представленны на кнопках. Пожалуйста,"
+                                    f" выберите цвет из предложенных.", reply_markup=keyboard)
+    await get_color(chat_id)
 
 
 # Обработчик текстовых сообщений
@@ -136,7 +169,7 @@ async def message_hand(message: types.Message):
 # обработчик нажатия на кнопку
 @dp.callback_query_handler(lambda c: c.data)
 async def process_callback(callback_query: types.CallbackQuery):
-    global users_sizes
+    global users_sizes, users_colors
     code = callback_query.data
     if code == 'btn_code':
         await bot.send_message(callback_query.from_user.id, 'Текст и картинка, содержащие информацию о том,'
@@ -152,6 +185,8 @@ async def process_callback(callback_query: types.CallbackQuery):
         await get_price(callback_query.from_user.id)
     elif code == 'btn_to_start':
         await get_code(callback_query.from_user.id)
+    elif code == 'btn_not_color':
+        await not_color(callback_query.from_user.id)
     elif "btn_size" in code:
         curr_code = users_code[callback_query.from_user.id]
         if all([elem.upper() in SIZES.keys() for elem in sizes[curr_code]]):
@@ -159,14 +194,22 @@ async def process_callback(callback_query: types.CallbackQuery):
         else:
             curr_sizes = sorted(sizes[curr_code])
         users_sizes[callback_query.from_user.id] = curr_sizes[int(code[9:])]
+        if colors[curr_code][users_sizes[callback_query.from_user.id]]:
+            await get_color(callback_query.from_user.id)
+        else:
+            await send_stock(callback_query.from_user.id)
+    elif "btn_color" in code:
+        curr_code = users_code[callback_query.from_user.id]
+        curr_size = users_sizes[callback_query.from_user.id]
+        users_colors[callback_query.from_user.id] = colors[curr_code][curr_size][int(code[10:])]
         await send_stock(callback_query.from_user.id)
 
 
 async def load_db():
-    global sizes, stocks, prices, colors
-    a, b, c, d, code = load_data('offers0_1.xml')
+    global sizes, stocks, prices, colors, names
+    a, b, c, d, e, code = load_data('offers0_1.xml')
     if code == 0:
-        sizes, stocks, prices, colors = a, b, c, d
+        sizes, stocks, prices, colors, names = a, b, c, d, e
         for ID in ADMINS:
             await bot.send_message(ID, "Данные успешно обновлены")
     elif code == 1:

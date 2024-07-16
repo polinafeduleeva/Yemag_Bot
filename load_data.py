@@ -14,12 +14,11 @@ def prepare_code(code):
 
 
 def load_data(db):
-    print('start loading')
     namespaces = {'ns': 'urn:1C.ru:commerceml_2'}
     try:
         tree = ET.parse(db)
     except:
-        return {}, {}, {}, {}, 1
+        return {}, {}, {}, {}, {}, 1
     root = tree.getroot()
 
     stocks_id = {}
@@ -27,6 +26,7 @@ def load_data(db):
     stocks = {}
     prices = {}
     colors = {}
+    names = {}
     elements = root.find('.//ns:ТипыЦен', namespaces)
     price_id = ''
     for elem in elements:
@@ -39,6 +39,7 @@ def load_data(db):
     for elem in elements:
         try:
             code = prepare_code(elem.find('ns:Артикул', namespaces).text)
+            name = elem.find('ns:Наименование', namespaces).text
             print(code)
             count = elem.find('ns:Количество', namespaces).text
             size_arr = elem.find('ns:ХарактеристикиТовара', namespaces)
@@ -67,13 +68,16 @@ def load_data(db):
             for e in size_arr:
                 if e.find('ns:Наименование', namespaces).text.lower() == 'цвет характеристики':
                     color = e.find('ns:Значение', namespaces).text
-            colors[code] = color
-            enum = 'штука'
+            enum = 'шт'
             try:
                 enum = elem.find('ns:БазоваяЕдиница', namespaces)
                 enum = enum.attrib['НаименованиеПолное']
-            except Exception as err:
-                print(err)
+                if enum[0].lower() == 'ш':
+                    enum = 'шт.'
+                else:
+                    enum = 'пары'
+            except:
+                pass
             if stock and int(count):
                 if stock not in stocks:
                     stocks[stock] = {code: {size: f'{count} {enum.lower()}'}}
@@ -82,6 +86,14 @@ def load_data(db):
                 else:
                     stocks[stock][code][size] = f'{count} {enum.lower()}'
             prices[code] = price
+            names[code] = ' '.join(name.split()[:-2])
+            if size:
+                if code not in colors:
+                    colors[code] = {size: [color.lower()]}
+                elif size not in colors[code]:
+                    colors[code][size] = [color.lower()]
+                elif color.lower() not in colors[code][size]:
+                    colors[code][size].append(color)
         except Exception as err:
             print(err)
-    return sizes, stocks, prices, colors, 0
+    return sizes, stocks, prices, colors, names, 0
