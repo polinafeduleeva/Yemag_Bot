@@ -7,8 +7,11 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import executor
 from config import *
 from load_data import *
+import os
 
 
+path = sorted([(os.path.getmtime(DATA_PATH + '/' + elem), DATA_PATH + '/' + elem)
+               for elem in os.listdir(DATA_PATH)])[-1][-1]
 # Логирование
 logging.basicConfig(level=logging.INFO)
 
@@ -20,7 +23,7 @@ users_code = {}
 users_sizes = {}
 users_colors = {}
 # выгрузка датасета
-sizes, stocks, prices, colors, names, code = load_data('offers0_1.xml')
+sizes, stocks, prices, colors, names, code = load_data(path)
 # Включаем логирование
 dp.middleware.setup(LoggingMiddleware())
 
@@ -80,7 +83,6 @@ async def get_color(chat_id: int):
     curr_code = users_code[chat_id]
     curr_size = users_sizes[chat_id]
     curr_colors = colors[curr_code][curr_size]
-    print(curr_colors)
     keyboard = InlineKeyboardMarkup()
     btns = []
     for i in range(len(curr_colors)):
@@ -207,7 +209,7 @@ async def process_callback(callback_query: types.CallbackQuery):
 
 async def load_db():
     global sizes, stocks, prices, colors, names
-    a, b, c, d, e, code = load_data('offers0_1.xml')
+    a, b, c, d, e, code = load_data(path)
     if code == 0:
         sizes, stocks, prices, colors, names = a, b, c, d, e
         for ID in ADMINS:
