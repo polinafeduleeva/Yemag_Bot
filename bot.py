@@ -209,6 +209,8 @@ async def process_callback(callback_query: types.CallbackQuery):
 
 async def load_db():
     global sizes, stocks, prices, colors, names
+    path = sorted([(os.path.getmtime(DATA_PATH + '/' + elem), DATA_PATH + '/' + elem)
+                   for elem in os.listdir(DATA_PATH)])[-1][-1]
     a, b, c, d, e, code = load_data(path)
     if code == 0:
         sizes, stocks, prices, colors, names = a, b, c, d, e
